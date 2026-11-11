@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>GNOME WebOS 2.0</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:"Cantarell","Ubuntu","Segoe UI",system-ui,sans-serif;user-select:none;-webkit-font-smoothing:antialiased}
+input,textarea{user-select:text;font-family:inherit}
+:root{--accent:#3584e4;--fg:#2e3436;--fg-dim:#5e5c64;--win-bg:#fff;--hb-bg:#ebebeb;--border:rgba(0,0,0,.12);--popover-bg:#fafafa;--hover:rgba(0,0,0,.06)}
+html[data-theme="dark"]{--fg:#fff;--fg-dim:#b5b3ad;--win-bg:#242424;--hb-bg:#303030;--border:rgba(255,255,255,.12);--popover-bg:#383838;--hover:rgba(255,255,255,.08)}
+#desktop{position:fixed;inset:0;overflow:hidden;transition:background .5s;color:var(--fg);background:radial-gradient(circle at 30% 20%,#6a3ab2 0%,#2b1055 45%,#10061f 100%)}
+#topbar{position:absolute;top:0;left:0;right:0;height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 6px;background:rgba(0,0,0,.72);backdrop-filter:blur(24px);color:#fff;font-size:13.5px;font-weight:700;z-index:9000}
+.tb-item{padding:0 10px;height:24px;display:flex;align-items:center;gap:7px;border-radius:7px;cursor:pointer;transition:background .12s}
+.tb-item:hover{background:rgba(255,255,255,.16)}
+#tb-clock{position:absolute;left:50%;transform:translateX(-50%);font-variant-numeric:tabular-nums}
+#tb-qs{font-size:12px;letter-spacing:2px;opacity:.95}
+#dock{position:absolute;left:10px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;padding:9px;border-radius:18px;background:rgba(0,0,0,.42);backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.1);box-shadow:0 8px 32px rgba(0,0,0,.45);z-index:8000;max-height:calc(100vh - 90px);overflow-y:auto}
+.dock-item{position:relative;cursor:pointer;transition:transform .13s;flex-shrink:0}
+.dock-item:hover{transform:scale(1.13)}
+.dock-item .dot{position:absolute;left:-9px;top:50%;transform:translateY(-50%);width:4px;height:4px;border-radius:50%;background:#fff;opacity:0;transition:opacity .2s}
+.dock-item.running .dot{opacity:.9}
+.dock-icon{width:42px;height:42px;border-radius:12px;font-size:21px}
+.app-icon{width:56px;height:56px;border-radius:15px;background:linear-gradient(150deg,var(--c1),var(--c2));display:grid;place-items:center;font-size:28px;line-height:1;box-shadow:0 3px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.3);color:#fff;flex:0 0 auto}
+.app-icon .mono{font-family:ui-monospace,monospace;font-weight:700}
+#windows{position:absolute;inset:0;pointer-events:none}
+#windows.dimmed{opacity:0;transform:scale(.96);transition:opacity .18s,transform .18s}
+.window{position:absolute;pointer-events:auto;min-width:320px;min-height:180px;background:var(--win-bg);border-radius:13px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.5),0 0 0 1px var(--border);animation:winIn .16s cubic-bezier(.2,.9,.3,1.2);transition:opacity .16s,transform .16s}
+@keyframes winIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+.window.focused{box-shadow:0 20px 60px rgba(0,0,0,.65),0 0 0 1px var(--border)}
+.window.minimized{opacity:0;transform:scale(.82) translateY(60px);pointer-events:none}
+.window.closing{opacity:0;transform:scale(.92);transition:opacity .12s,transform .12s}
+.window.maximized{left:0!important;top:32px!important;width:100%!important;height:calc(100% - 32px)!important;border-radius:0}
+.headerbar{height:47px;flex:0 0 auto;position:relative;display:flex;align-items:center;padding:0 9px 0 14px;background:var(--hb-bg);border-bottom:1px solid var(--border);cursor:grab}
+.headerbar:active{cursor:grabbing}
+.window:not(.focused) .headerbar{filter:brightness(.92)}
+.win-title{position:absolute;left:50%;transform:translateX(-50%);font-size:13.5px;font-weight:700;color:var(--fg);max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
+.win-controls{margin-left:auto;display:flex;gap:7px;z-index:2}
+.win-btn{width:25px;height:25px;border-radius:50%;border:none;background:var(--hover);color:var(--fg);font-size:11px;display:grid;place-items:center;cursor:pointer}
+.win-btn:hover{background:rgba(128,128,128,.4)}
+.win-btn.close:hover{background:#e01b24;color:#fff}
+.win-body{flex:1;overflow:auto;position:relative;background:var(--win-bg);color:var(--fg)}
+.win-body::-webkit-scrollbar{width:10px}
+.win-body::-webkit-scrollbar-thumb{background:var(--hover);border-radius:6px;border:3px solid transparent;background-clip:content-box}
+.rz{position:absolute;z-index:6}
+.rz-n{top:-2px;left:10px;right:10px;height:6px;cursor:n-resize}
+.rz-s{bottom:-2px;left:10px;right:10px;height:6px;cursor:s-resize}
+.rz-e{right:-2px;top:10px;bottom:10px;width:6px;cursor:e-resize}
+.rz-w{left:-2px;top:10px;bottom:10px;width:6px;cursor:w-resize}
+.rz-ne{top:-2px;right:-2px;width:12px;height:12px;cursor:ne-resize}
+.rz-nw{top:-2px;left:-2px;width:12px;height:12px;cursor:nw-resize}
+.rz-se{bottom:-2px;right:-2px;width:12px;height:12px;cursor:se-resize}
+.rz-sw{bottom:-2px;left:-2px;width:12px;height:12px;cursor:sw-resize}
+#overview{position:absolute;inset:0;z-index:8500;background:rgba(22,12,40,.75);backdrop-filter:blur(30px);display:flex;flex-direction:column;align-items:center;padding:70px 24px 24px;opacity:0;pointer-events:none;transition:opacity .2s;overflow-y:auto}
+#overview.show{opacity:1;pointer-events:auto}
+#ov-search{width:min(420px,90%);height:40px;border-radius:20px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.12);color:#fff;padding:0 18px;font-size:14px;outline:none}
+#ov-search::placeholder{color:rgba(255,255,255,.6)}
+#ov-search:focus{background:rgba(255,255,255,.2)}
+#ov-grid{margin-top:34px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:20px 10px;width:min(880px,100%)}
+.ov-app{display:flex;flex-direction:column;align-items:center;gap:9px;padding:12px 6px;border-radius:14px;cursor:pointer;transition:background .13s,transform .13s}
+.ov-app:hover{background:rgba(255,255,255,.13);transform:translateY(-2px)}
+.ov-app-name{font-size:12.5px;color:#fff;text-align:center}
+.popover{position:absolute;top:38px;right:8px;width:320px;background:var(--popover-bg);border:1px solid var(--border);border-radius:15px;box-shadow:0 14px 44px rgba(0,0,0,.55);padding:13px;z-index:9500;color:var(--fg)}
+#cal-panel{right:auto;left:50%;transform:translateX(-50%);width:290px}
+.hidden{display:none!important}
+.qs-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.qs-tile{display:flex;align-items:center;gap:9px;padding:11px 12px;border-radius:11px;border:none;background:var(--hover);color:var(--fg);font-size:13px;font-weight:600;cursor:pointer}
+.qs-tile.on{background:var(--accent);color:#fff}
+.qs-slider{display:flex;align-items:center;gap:10px;margin-top:11px;font-size:14px}
+.qs-slider input{flex:1;accent-color:var(--accent)}
+.qs-row{display:flex;align-items:center;justify-content:space-between;margin-top:11px;padding-top:11px;border-top:1px solid var(--border);font-size:13px;font-weight:600}
+#qs-power{width:34px;height:34px;border-radius:50%;border:none;cursor:pointer;background:var(--hover);color:var(--fg);font-size:15px}
+#qs-power:hover{background:#e01b24;color:#fff}
+.cal-head{display:flex;align-items:center;justify-content:space-between;font-size:13.5px;font-weight:700;margin-bottom:10px}
+.cal-nav{background:none;border:none;color:var(--fg);cursor:pointer;font-size:15px;padding:2px 8px;border-radius:6px}
+.cal-nav:hover{background:var(--hover)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font-size:12px}
+.cal-dow{color:var(--fg-dim);font-weight:700;padding:4px 0}
+.cal-day{padding:6px 0;border-radius:8px}
+.cal-day:hover{background:var(--hover)}
+.cal-day.today{background:var(--accent);color:#fff;font-weight:700}
+.cal-day.other{color:var(--fg-dim);opacity:.4}
+.toast-container{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:99999;pointer-events:none}
+.toast{background:rgba(20,20,20,.92);color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.5);pointer-events:auto;display:flex;align-items:center;gap:8px;max-width:340px;animation:toastIn .2s}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+.store-app{display:flex;flex-direction:column;height:100%}
+.store-toolbar{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;flex-shrink:0}
+.store-search{flex:1;min-width:180px;padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:var(--hover);color:var(--fg);font-size:13px;outline:none}
+.store-cats{display:flex;gap:6px;flex-wrap:wrap;width:100%}
+.store-cat{padding:6px 12px;border-radius:16px;border:none;background:var(--hover);color:var(--fg);font-size:12px;font-weight:600;cursor:pointer}
+.store-cat.active{background:var(--accent);color:#fff}
+.store-grid{flex:1;overflow:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-content:start}
+.store-card{padding:14px;border-radius:14px;background:var(--hover);display:flex;gap:12px}
+.store-card-icon{width:52px;height:52px;border-radius:13px;display:grid;place-items:center;font-size:26px;flex-shrink:0}
+.store-card-body{flex:1;min-width:0}
+.store-card-name{font-size:14px;font-weight:700;margin-bottom:2px;display:flex;align-items:center;gap:6px}
+.store-card-desc{font-size:11.5px;color:var(--fg-dim);line-height:1.4;margin-bottom:8px}
+.store-card-meta{font-size:10.5px;color:var(--fg-dim);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.store-btn{padding:6px 14px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.store-btn:disabled{background:var(--hover);color:var(--fg-dim);cursor:default}
+.store-btn.installed{background:var(--hover);color:var(--fg)}
+.store-badge{font-size:9px;padding:2px 6px;border-radius:6px;background:rgba(53,132,228,.2);color:var(--accent);font-weight:800}
+.store-progress{height:4px;border-radius:2px;background:var(--hover);margin-top:8px;overflow:hidden}
+.store-progress-bar{height:100%;background:var(--accent);width:0;transition:width .1s}
+.store-empty{grid-column:1/-1;text-align:center;color:var(--fg-dim);font-size:13px;padding:60px 0}
+.term{height:100%;overflow:auto;padding:12px 14px;font-family:ui-monospace,Consolas,monospace;font-size:12.8px;line-height:1.55;background:#151515;color:#d8d8d8}
+.term-out>div{white-space:pre-wrap;word-break:break-word}
+.term-inputline{display:flex;gap:7px;align-items:center}
+.term-prompt{color:#2ec27e;white-space:nowrap}
+.term-input{flex:1;background:none;border:none;outline:none;color:#d8d8d8;font-family:inherit;font-size:inherit}
+.term pre{font-family:inherit;color:#8ff0a4}
+.files{display:flex;flex-direction:column;height:100%}
+.files-toolbar{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);flex:0 0 auto}
+.files-back{width:30px;height:30px;border-radius:8px;border:none;cursor:pointer;background:var(--hover);color:var(--fg);font-size:15px}
+.files-back:disabled{opacity:.35;cursor:default}
+.files-crumbs{font-size:12.5px;color:var(--fg-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.files-grid{flex:1;overflow:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;align-content:start}
+.files-item{padding:12px 6px;border-radius:11px;cursor:pointer;text-align:center}
+.files-item:hover{background:var(--hover)}
+.files-item.sel{background:rgba(53,132,228,.28)}
+.files-ico{font-size:34px;line-height:1.2}
+.files-name{font-size:12px;font-weight:600;margin-top:5px;word-break:break-word}
+.files-meta{font-size:10.5px;color:var(--fg-dim);margin-top:2px}
+.files-empty{grid-column:1/-1;text-align:center;color:var(--fg-dim);padding:50px 0;font-size:13px}
+.editor-area{width:100%;height:100%;border:none;outline:none;resize:none;padding:16px;font-size:14px;line-height:1.6;background:var(--win-bg);color:var(--fg);font-family:ui-monospace,Consolas,monospace}
+.calc{display:flex;flex-direction:column;height:100%;padding:12px;gap:10px}
+.calc-display{padding:14px 16px;border-radius:12px;background:var(--hover);text-align:right;font-size:30px;font-weight:300;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-height:64px;display:flex;align-items:center;justify-content:flex-end}
+.calc-keys{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.calc-keys button{border:none;border-radius:11px;cursor:pointer;background:var(--hover);color:var(--fg);font-size:17px;font-weight:600}
+.calc-keys button:hover{background:rgba(128,128,128,.28)}
+.calc-keys button.op{background:rgba(53,132,228,.22);color:var(--accent)}
+.calc-keys button.eq{background:var(--accent);color:#fff}
+.calc-keys button.wide{grid-column:span 2}
+.settings{padding:18px 22px 30px}
+.set-group{margin-bottom:26px}
+.set-title{font-size:12px;font-weight:800;text-transform:uppercase;color:var(--fg-dim);margin-bottom:11px}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 15px;margin-bottom:7px;border-radius:12px;background:var(--hover)}
+.set-row-label{font-size:13.5px;font-weight:600}
+.set-row-sub{font-size:11.5px;color:var(--fg-dim);margin-top:2px}
+.seg{display:flex;gap:5px;background:rgba(128,128,128,.16);padding:3px;border-radius:9px}
+.seg button{border:none;background:none;color:var(--fg);cursor:pointer;padding:6px 14px;border-radius:7px;font-size:12.5px;font-weight:600}
+.seg button.active{background:var(--accent);color:#fff}
+.swatches{display:flex;gap:9px}
+.swatch{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+.swatch.active{border-color:var(--fg);box-shadow:0 0 0 2px var(--win-bg) inset}
+.btn{border:none;border-radius:9px;padding:8px 16px;cursor:pointer;background:var(--accent);color:#fff;font-size:12.5px;font-weight:700}
+.btn.ghost{background:var(--hover);color:var(--fg)}
+.app-list{display:flex;flex-direction:column;gap:6px}
+.app-list-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:rgba(128,128,128,.08)}
+.app-list-item .name{flex:1;font-size:12.5px;font-weight:600}
+.app-list-item .badge{font-size:10px;padding:2px 8px;border-radius:6px;background:var(--hover);color:var(--fg-dim)}
+.app-list-item .uninst{padding:4px 10px;border-radius:6px;border:none;background:rgba(224,27,36,.15);color:#e01b24;font-size:11px;font-weight:700;cursor:pointer}
+.about{padding:28px 24px;text-align:center}
+.about-logo{width:88px;height:88px;border-radius:24px;margin:0 auto 16px;background:linear-gradient(150deg,#7b3fe4,#2b1055);display:grid;place-items:center;font-size:44px}
+.about h2{font-size:19px;margin-bottom:4px}
+.about p{font-size:12.5px;color:var(--fg-dim);margin-bottom:18px}
+.about-list{text-align:left;max-width:340px;margin:0 auto}
+.about-list div{display:flex;justify-content:space-between;gap:14px;padding:8px 2px;border-bottom:1px solid var(--border);font-size:12.5px}
+.about-list span:first-child{color:var(--fg-dim)}
+.notes-app{display:flex;height:100%}
+.notes-sidebar{width:210px;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.notes-new{margin:8px;padding:9px;border:none;border-radius:9px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;font-size:13px}
+.notes-list{flex:1;overflow-y:auto;padding:0 4px}
+.notes-item{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12.5px;margin-bottom:2px}
+.notes-item:hover{background:var(--hover)}
+.notes-item.active{background:var(--accent);color:#fff}
+.notes-item-title{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notes-item-date{font-size:10px;opacity:.6;margin-top:2px}
+.notes-main{flex:1;display:flex;flex-direction:column;min-width:0}
+.notes-title{padding:12px 16px;border:none;background:none;color:var(--fg);font-size:17px;font-weight:700;outline:none;border-bottom:1px solid var(--border)}
+.notes-body{flex:1;padding:16px;border:none;background:none;color:var(--fg);resize:none;outline:none;font-size:13.5px;line-height:1.6}
+.notes-meta{padding:6px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--fg-dim)}
+.todo-app{padding:16px;display:flex;flex-direction:column;height:100%;gap:12px}
+.todo-input-row{display:flex;gap:8px;flex-shrink:0}
+.todo-input{flex:1;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--hover);color:var(--fg);font-size:13.5px;outline:none}
+.todo-add{padding:0 18px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+.todo-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.todo-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--hover)}
+.todo-item.done .todo-text{text-decoration:line-through;opacity:.5}
+.todo-check{width:18px;height:18px;accent-color:var(--accent);cursor:pointer}
+.todo-text{flex:1;font-size:13px;word-break:break-word}
+.todo-del{background:none;border:none;color:var(--fg-dim);cursor:pointer;font-size:16px;border-radius:6px;padding:0 4px}
+.todo-del:hover{color:#e01b24}
+.todo-empty{text-align:center;color:var(--fg-dim);font-size:13px;padding:40px 0}
+.paint-app{display:flex;flex-direction:column;height:100%}
+.paint-toolbar{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap;flex-shrink:0}
+.paint-toolbar input[type=color]{width:34px;height:30px;border:none;border-radius:6px;background:none;cursor:pointer}
+.paint-toolbar input[type=range]{width:80px;accent-color:var(--accent)}
+.paint-btn{padding:6px 12px;border-radius:8px;border:none;background:var(--hover);color:var(--fg);font-size:12px;font-weight:700;cursor:pointer}
+.paint-canvas-wrap{flex:1;display:grid;place-items:center;padding:14px;background:var(--hover);overflow:auto}
+.paint-canvas{background:#fff;cursor:crosshair;border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+.g2048-app{display:flex;flex-direction:column;align-items:center;height:100%;gap:14px;padding:14px;background:#faf8ef;color:#776e65;overflow:auto}
+html[data-theme="dark"] .g2048-app{background:#1a1a1a;color:#eee}
+.g2048-header{display:flex;justify-content:space-between;width:100%;max-width:340px;gap:8px}
+.g2048-score{background:#bbada0;color:#fff;padding:6px 14px;border-radius:8px;font-weight:700;font-size:13px}
+.g2048-grid{background:#bbada0;border-radius:8px;padding:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:340px;height:340px;max-width:100%}
+.g2048-cell{border-radius:6px;background:rgba(238,228,218,.35);display:grid;place-items:center;font-weight:700;font-size:22px;color:#776e65}
+.snake-app{display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px;height:100%;background:var(--win-bg)}
+.snake-header{display:flex;gap:20px;font-size:13px;font-weight:700}
+.snake-canvas{background:#1a1a1a;border-radius:10px;max-width:100%}
+.snake-hint{font-size:11.5px;color:var(--fg-dim);text-align:center}
+.mines-app{display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px;height:100%;overflow:auto}
+.mines-header{display:flex;gap:14px;align-items:center;font-size:13px;font-weight:700}
+.mines-grid{display:grid;gap:2px;background:rgba(128,128,128,.2);padding:2px;border-radius:6px}
+.mines-cell{width:28px;height:28px;border:none;border-radius:3px;background:rgba(128,128,128,.3);cursor:pointer;font-size:13px;font-weight:800;display:grid;place-items:center}
+.mines-cell.open{background:var(--hover);cursor:default}
+.mines-cell.flag{background:rgba(229,165,10,.4)}
+.mines-cell.mine{background:#e01b24;color:#fff}
+.mines-cell[data-n="1"]{color:#1c71d8}
+.mines-cell[data-n="2"]{color:#26a269}
+.mines-cell[data-n="3"]{color:#e01b24}
+.mines-cell[data-n="4"]{color:#813d9c}
+.mines-cell[data-n="5"]{color:#c64600}
+.photos-app{padding:14px;height:100%;display:flex;flex-direction:column;gap:10px}
+.photos-upload{padding:9px 14px;border-radius:9px;border:1px dashed var(--border);background:var(--hover);color:var(--fg);cursor:pointer;font-size:12.5px;text-align:center}
+.photos-upload input{display:none}
+.photos-grid{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;align-content:start}
+.photo-thumb{aspect-ratio:1;border-radius:9px;overflow:hidden;cursor:pointer;background:var(--hover);display:grid;place-items:center}
+.photo-thumb img{width:100%;height:100%;object-fit:cover}
+.photos-empty{grid-column:1/-1;text-align:center;color:var(--fg-dim);padding:40px 0;font-size:12.5px}
+.photos-view{position:absolute;inset:0;background:rgba(0,0,0,.9);display:grid;place-items:center;z-index:10;cursor:pointer;padding:20px}
+.photos-view img{max-width:100%;max-height:100%;border-radius:8px}
+.music-app{padding:18px;display:flex;flex-direction:column;gap:16px;height:100%}
+.music-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.music-buttons button{padding:10px 16px;border-radius:10px;border:none;background:var(--hover);color:var(--fg);font-weight:700;cursor:pointer;font-size:13px}
+.music-buttons button:hover{background:var(--accent);color:#fff}
+.music-info{padding:10px;border-radius:9px;background:var(--hover);font-size:12.5px;color:var(--fg-dim)}
+.music-note{display:inline-block;padding:4px 8px;margin:2px;border-radius:6px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;animation:fadeOut .6s ease-out forwards}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+.timer-app{padding:18px;display:flex;flex-direction:column;gap:14px;height:100%;align-items:center;justify-content:center}
+.timer-tabs{display:flex;gap:4px;background:var(--hover);padding:4px;border-radius:10px}
+.timer-tabs button{padding:8px 18px;border:none;border-radius:7px;background:none;color:var(--fg);font-weight:700;cursor:pointer;font-size:12.5px}
+.timer-tabs button.active{background:var(--accent);color:#fff}
+.timer-display{font-size:52px;font-weight:200;font-variant-numeric:tabular-nums;font-family:ui-monospace,monospace}
+.timer-buttons{display:flex;gap:10px}
+.timer-buttons button{padding:10px 22px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+.timer-buttons button.ghost{background:var(--hover);color:var(--fg)}
+.timer-inputs{display:flex;gap:8px}
+.timer-inputs input{width:64px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--hover);color:var(--fg);text-align:center;font-size:16px;font-weight:700;outline:none}
+.chat-app{display:flex;flex-direction:column;height:100%}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px}
+.chat-msg{max-width:80%;padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.45;word-break:break-word}
+.chat-msg.bot{background:var(--hover);align-self:flex-start;border-bottom-left-radius:4px}
+.chat-msg.user{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.chat-input-row{display:flex;gap:8px;padding:10px;border-top:1px solid var(--border)}
+.chat-input{flex:1;padding:9px 14px;border-radius:20px;border:1px solid var(--border);background:var(--hover);color:var(--fg);font-size:13px;outline:none}
+.chat-send{padding:0 18px;border:none;border-radius:20px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+.code-app{display:flex;flex-direction:column;height:100%}
+.code-input{flex:1;padding:14px;border:none;outline:none;resize:none;background:var(--win-bg);color:var(--fg);font-family:ui-monospace,monospace;font-size:13px;line-height:1.6;border-bottom:1px solid var(--border)}
+.code-toolbar{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+.code-run{padding:7px 16px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;font-size:12.5px}
+.code-output{flex:1;border:none;background:#fff;width:100%}
+.sysmon-app{padding:18px;display:flex;flex-direction:column;gap:16px;height:100%}
+.sysmon-row{display:flex;flex-direction:column;gap:6px}
+.sysmon-top{display:flex;justify-content:space-between;font-size:12.5px;font-weight:700}
+.sysmon-value{font-family:ui-monospace,monospace;color:var(--accent)}
+.sysmon-graph{width:100%;height:70px;border-radius:8px;background:var(--hover)}
+.sysmon-info{font-size:11.5px;color:var(--fg-dim);line-height:1.6;padding-top:8px;border-top:1px solid var(--border)}
+@media(max-width:640px){#dock{transform:translateY(-50%) scale(.86);left:4px}#ov-grid{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}.notes-sidebar{width:140px}.store-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="desktop">
+  <div id="windows"></div>
+  <nav id="dock"></nav>
+  <header id="topbar">
+    <div class="tb-item" id="activities">Обзор</div>
+    <div class="tb-item" id="tb-clock">--:--</div>
+    <div class="tb-item" id="tb-qs" title="Быстрые настройки">🔊 📶 🔋</div>
+  </header>
+  <div id="overview">
+    <input id="ov-search" placeholder="Введите название приложения…" autocomplete="off">
+    <div id="ov-grid"></div>
+  </div>
+  <div id="qs-panel" class="popover hidden"></div>
+  <div id="cal-panel" class="popover hidden"></div>
+  <div id="toasts" class="toast-container"></div>
+</div>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function toast(msg,icon='✓'){
+  const el=document.createElement('div');
+  el.className='toast';
+  el.innerHTML=`<span style="font-size:15px">${icon}</span><span>${esc(msg)}</span>`;
+  $('#toasts').appendChild(el);
+  setTimeout(()=>{el.style.transition='opacity .25s,transform .25s';el.style.opacity='0';el.style.transform='translateX(40px)';setTimeout(()=>el.remove(),300);},3200);
+}
+
+const STORAGE_KEY='gnome-webos-v2';
+const DEFAULT_STATE={
+  installed:['files','terminal','editor','calc','settings','about','store'],
+  theme:'dark',accent:'#3584e4',wallpaper:0,
+  notes:[{id:1,title:'Добро пожаловать',body:'Это приложение заметок.\nВсё сохраняется автоматически.',updated:Date.now()}],
+  todos:[{id:1,text:'Изучить новую систему',done:false}]
+};
+let state=loadState();
+function loadState(){
+  try{const s=JSON.parse(localStorage.getItem(STORAGE_KEY));if(s&&Array.isArray(s.installed))return{...DEFAULT_STATE,...s};}catch(e){}
+  return JSON.parse(JSON.stringify(DEFAULT_STATE));
+}
+function saveState(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch(e){}}
+
+/* ============ APP CATALOG ============ */
+const APP_CATALOG={
+  files:{name:'Файлы',icon:'📁',c1:'#62a0ea',c2:'#1c71d8',w:780,h:520,category:'Система',desc:'Проводник файловой системы',size:'2.4 МБ',preinstalled:true,init:initFiles},
+  terminal:{name:'Терминал',icon:'<span class="mono">&gt;_</span>',c1:'#4a4a4a',c2:'#1a1a1a',w:660,h:430,category:'Система',desc:'Командная оболочка',size:'1.8 МБ',preinstalled:true,init:initTerminal},
+  editor:{name:'Текст',icon:'📝',c1:'#f8e45c',c2:'#e5a50a',w:640,h:470,category:'Продуктивность',desc:'Текстовый редактор',size:'1.2 МБ',preinstalled:true,init:initEditor},
+  calc:{name:'Калькулятор',icon:'🧮',c1:'#8ff0a4',c2:'#26a269',w:340,h:470,category:'Утилиты',desc:'Калькулятор',size:'0.9 МБ',preinstalled:true,init:initCalc},
+  settings:{name:'Настройки',icon:'⚙️',c1:'#c8c6c1',c2:'#77767b',w:720,h:540,category:'Система',desc:'Настройки системы',size:'1.5 МБ',preinstalled:true,init:initSettings},
+  about:{name:'О системе',icon:'ℹ️',c1:'#99c1f1',c2:'#3584e4',w:470,h:430,category:'Система',desc:'Информация о системе',size:'0.4 МБ',preinstalled:true,init:initAbout},
+  store:{name:'Магазин',icon:'🛒',c1:'#f9c440',c2:'#e5a50a',w:820,h:600,category:'Система',desc:'Магазин приложений',size:'3.1 МБ',preinstalled:true,init:initStore},
+  notes:{name:'Заметки',icon:'🗒️',c1:'#f8e45c',c2:'#c64600',w:720,h:480,category:'Продуктивность',desc:'Заметки с автосохранением',size:'1.1 МБ',preinstalled:false,init:initNotes},
+  todo:{name:'Задачи',icon:'✅',c1:'#8ff0a4',c2:'#26a269',w:460,h:520,category:'Продуктивность',desc:'Список задач',size:'0.8 МБ',preinstalled:false,init:initTodo},
+  paint:{name:'Рисование',icon:'🎨',c1:'#dc8add',c2:'#813d9c',w:680,h:520,category:'Мультимедиа',desc:'Растровый редактор',size:'2.2 МБ',preinstalled:false,init:initPaint},
+  photos:{name:'Фотографии',icon:'🖼️',c1:'#99c1f1',c2:'#1c71d8',w:640,h:520,category:'Мультимедиа',desc:'Просмотр изображений',size:'1.6 МБ',preinstalled:false,init:initPhotos},
+  music:{name:'Музыка',icon:'🎵',c1:'#f66151',c2:'#a51d2d',w:460,h:440,category:'Мультимедиа',desc:'Синтезатор мелодий',size:'2.0 МБ',preinstalled:false,init:initMusic},
+  g2048:{name:'2048',icon:'🔢',c1:'#edc22e',c2:'#c64600',w:400,h:520,category:'Игры',desc:'Головоломка 2048',size:'0.6 МБ',preinstalled:false,init:init2048},
+  snake:{name:'Змейка',icon:'🐍',c1:'#8ff0a4',c2:'#1a5e46',w:440,h:560,category:'Игры',desc:'Собирайте яблоки',size:'0.5 МБ',preinstalled:false,init:initSnake},
+  mines:{name:'Сапёр',icon:'💣',c1:'#77767b',c2:'#3d3846',w:400,h:540,category:'Игры',desc:'Найдите мины',size:'0.7 МБ',preinstalled:false,init:initMines},
+  timer:{name:'Таймер',icon:'⏱️',c1:'#62a0ea',c2:'#1c71d8',w:420,h:420,category:'Утилиты',desc:'Секундомер и таймер',size:'0.4 МБ',preinstalled:false,init:initTimer},
+  code:{name:'Код',icon:'⌨️',c1:'#3584e4',c2:'#1a5fb4',w:720,h:560,category:'Разработка',desc:'Песочница JS',size:'1.4 МБ',preinstalled:false,init:initCode},
+  chat:{name:'Чат',icon:'💬',c1:'#99c1f1',c2:'#3584e4',w:500,h:560,category:'Утилиты',desc:'Простой чат-бот',size:'0.9 МБ',preinstalled:false,init:initChat},
+  sysmon:{name:'Монитор',icon:'📊',c1:'#f9c440',c2:'#c64600',w:480,h:460,category:'Утилиты',desc:'CPU/RAM в реальном времени',size:'1.0 МБ',preinstalled:false,init:initSysmon}
+};
+
+/* ============ THEME ============ */
+const WALLS=[
+  'radial-gradient(circle at 30% 20%,#6a3ab2 0%,#2b1055 45%,#10061f 100%)',
+  'linear-gradient(160deg,#0f2027 0%,#203a43 50%,#2c5364 100%)',
+  'radial-gradient(circle at 70% 30%,#ff7a59 0%,#a4133c 50%,#2b0a12 100%)',
+  'radial-gradient(circle at 25% 75%,#2ec27e 0%,#1a5e46 45%,#07130f 100%)',
+  'radial-gradient(circle at 50% 15%,#f6d32d 0%,#c64600 45%,#2b1400 100%)',
+  'radial-gradient(circle at 40% 60%,#99c1f1 0%,#1a5fb4 50%,#001a33 100%)'
+];
+function applyState(){
+  document.documentElement.dataset.theme=state.theme;
+  document.documentElement.style.setProperty('--accent',state.accent);
+  $('#desktop').style.background=WALLS[state.wallpaper%WALLS.length];
+}
+function setTheme(t){state.theme=t;applyState();saveState();}
+function setAccent(c){state.accent=c;applyState();saveState();}
+function cycleWallpaper(){state.wallpaper=(state.wallpaper+1)%WALLS.length;applyState();saveState();}
+
+/* ============ WINDOWS ============ */
+let winZ=100,winSeq=0;
+const openWindows=new Map();
+function focusWindow(id){const r=openWindows.get(id);if(!r)return;r.el.style.zIndex=++winZ;$$('.window').forEach(w=>w.classList.remove('focused'));r.el.classList.add('focused');}
+function updateDock(){$$('.dock-item').forEach(d=>{const r=[...openWindows.values()].some(w=>w.appId===d.dataset.app);d.classList.toggle('running',r);});}
+function openApp(appId){
+  if(!state.installed.includes(appId)){toast('Приложение не установлено','⚠️');return null;}
+  const ex=[...openWindows.values()].find(w=>w.appId===appId);
+  if(ex){ex.el.classList.remove('minimized');focusWindow(ex.el.dataset.id);return ex;}
+  return createWindow(appId);
+}
+function closeWindow(id){
+  const r=openWindows.get(id);if(!r)return;
+  const el=r.el;el.classList.add('closing');
+  setTimeout(()=>{el.remove();openWindows.delete(id);updateDock();},120);
+}
+function toggleMax(id){const r=openWindows.get(id);if(!r)return;r.el.classList.toggle('maximized');focusWindow(id);}
+function createWindow(appId){
+  const app=APP_CATALOG[appId];if(!app)return null;
+  const id='win'+(++winSeq);
+  const el=document.createElement('div');
+  el.className='window focused';el.dataset.id=id;
+  const W=Math.min(app.w,window.innerWidth-140),H=Math.min(app.h,window.innerHeight-150);
+  const off=(winSeq%6)*26;
+  el.style.width=W+'px';el.style.height=H+'px';
+  el.style.left=Math.max(80,(window.innerWidth-W)/2+off-70)+'px';
+  el.style.top=Math.max(48,(window.innerHeight-H)/2+off-50)+'px';
+  el.innerHTML=`<div class="headerbar"><div class="win-title">${app.name}</div><div class="win-controls"><button class="win-btn min">–</button><button class="win-btn max">□</button><button class="win-btn close">✕</button></div></div><div class="win-body"></div>${['n','s','e','w','ne','nw','se','sw'].map(d=>`<div class="rz rz-${d}" data-dir="${d}"></div>`).join('')}`;
+  $('#windows').appendChild(el);
+  openWindows.set(id,{el,appId});updateDock();focusWindow(id);
+  $('.win-btn.close',el).onclick=e=>{e.stopPropagation();closeWindow(id);};
+  $('.win-btn.min',el).onclick=e=>{e.stopPropagation();el.classList.add('minimized');};
+  $('.win-btn.max',el).onclick=e=>{e.stopPropagation();toggleMax(id);};
+  const hb=$('.headerbar',el);
+  hb.addEventListener('pointerdown',e=>{
+    if(e.button!==0||e.target.closest('.win-btn'))return;
+    focusWindow(id);if(el.classList.contains('maximized'))return;
+    const r=el.getBoundingClientRect();const sx=e.clientX,sy=e.clientY,ox=r.left,oy=r.top;
+    hb.setPointerCapture(e.pointerId);
+    const move=ev=>{el.style.left=(ox+ev.clientX-sx)+'px';el.style.top=Math.max(32,oy+ev.clientY-sy)+'px';};
+    const up=()=>{hb.removeEventListener('pointermove',move);hb.removeEventListener('pointerup',up);};
+    hb.addEventListener('pointermove',move);hb.addEventListener('pointerup',up);
+  });
+  hb.addEventListener('dblclick',e=>{if(!e.target.closest('.win-btn'))toggleMax(id);});
+  $$('.rz',el).forEach(h=>{
+    const dir=h.dataset.dir;
+    h.addEventListener('pointerdown',e=>{
+      e.stopPropagation();if(el.classList.contains('maximized'))return;focusWindow(id);
+      const r=el.getBoundingClientRect();const sx=e.clientX,sy=e.clientY,ox=r.left,oy=r.top,ow=r.width,oh=r.height;
+      h.setPointerCapture(e.pointerId);
+      const move=ev=>{
+        const dx=ev.clientX-sx,dy=ev.clientY-sy;
+        if(dir.includes('e'))el.style.width=Math.max(320,ow+dx)+'px';
+        if(dir.includes('s'))el.style.height=Math.max(180,oh+dy)+'px';
+        if(dir.includes('w')){const nw=Math.max(320,ow-dx);el.style.width=nw+'px';el.style.left=(ox+ow-nw)+'px';}
+        if(dir.includes('n')){const nh=Math.max(180,oh-dy);const nt=Math.max(32,oy+oh-nh);el.style.height=(oy+oh-nt)+'px';el.style.top=nt+'px';}
+      };
+      const up=()=>{h.removeEventListener('pointermove',move);h.removeEventListener('pointerup',up);};
+      h.addEventListener('pointermove',move);h.addEventListener('pointerup',up);
+    });
+  });
+  const body=$('.win-body',el);
+  if(app.init)app.init(body,el);
+  return {el,appId};
+}
+document.addEventListener('pointerdown',e=>{const w=e.target.closest('.window');if(w)focusWindow(w.dataset.id);});
+
+/* ============ INSTALL ============ */
+function installApp(appId){
+  if(state.installed.includes(appId))return;
+  state.installed.push(appId);saveState();rebuildDock();refreshStores();
+  toast(`${APP_CATALOG[appId].name} установлено`,'✓');
+}
+function uninstallApp(appId){
+  const app=APP_CATALOG[appId];if(!app||app.preinstalled)return;
+  state.installed=state.installed.filter(id=>id!==appId);saveState();
+  [...openWindows.entries()].forEach(([id,r])=>{if(r.appId===appId)closeWindow(id);});
+  rebuildDock();refreshStores();toast(`${app.name} удалено`,'🗑️');
+}
+function refreshStores(){
+  document.querySelectorAll('.window').forEach(w=>{
+    const r=openWindows.get(w.dataset.id);
+    if(r&&r.appId==='store')renderStore(w.querySelector('.win-body'));
+  });
+}
+
+/* ============ DOCK ============ */
+function rebuildDock(){
+  const dock=$('#dock');dock.innerHTML='';
+  state.installed.forEach(id=>{
+    const app=APP_CATALOG[id];if(!app)return;
+    const d=document.createElement('div');
+    d.className='dock-item';d.dataset.app=id;d.title=app.name;
+    d.innerHTML=`<div class="app-icon dock-icon" style="--c1:${app.c1};--c2:${app.c2}">${app.icon}</div><span class="dot"></span>`;
+    d.onclick=()=>openApp(id);
+    dock.appendChild(d);
+  });
+  updateDock();
+}
+
+/* ============ OVERVIEW ============ */
+function buildOverview(){
+  const grid=$('#ov-grid');grid.innerHTML='';
+  state.installed.forEach(id=>{
+    const app=APP_CATALOG[id];if(!app)return;
+    const el=document.createElement('div');
+    el.className='ov-app';el.dataset.search=app.name.toLowerCase();
+    el.innerHTML=`<div class="app-icon" style="--c1:${app.c1};--c2:${app.c2}">${app.icon}</div><div class="ov-app-name">${app.name}</div>`;
+    el.onclick=()=>{closeOverview();openApp(id);};
+    grid.appendChild(el);
+  });
+}
+function openOverview(){buildOverview();$('#overview').classList.add('show');$('#windows').classList.add('dimmed');closePopovers();setTimeout(()=>$('#ov-search').focus(),120);}
+function closeOverview(){$('#overview').classList.remove('show');$('#windows').classList.remove('dimmed');$('#ov-search').value='';}
+$('#ov-search').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();$$('.ov-app').forEach(a=>a.style.display=a.dataset.search.includes(q)?'':'none');});
+
+/* ============ CLOCK ============ */
+const DOW=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+const MONTHS=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+function tickClock(){const d=new Date();$('#tb-clock').textContent=`${DOW[d.getDay()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
+setInterval(tickClock,1000);tickClock();
+
+let calYear,calMonth;
+function renderCalendar(){
+  const now=new Date();
+  if(calYear===undefined){calYear=now.getFullYear();calMonth=now.getMonth();}
+  const firstDow=(new Date(calYear,calMonth,1).getDay()+6)%7;
+  const dim=new Date(calYear,calMonth+1,0).getDate();
+  const dip=new Date(calYear,calMonth,0).getDate();
+  let cells='';
+  for(let i=firstDow-1;i>=0;i--)cells+=`<div class="cal-day other">${dip-i}</div>`;
+  for(let d=1;d<=dim;d++){const t=d===now.getDate()&&calMonth===now.getMonth()&&calYear===now.getFullYear();cells+=`<div class="cal-day${t?' today':''}">${d}</div>`;}
+  const tail=(7-(firstDow+dim)%7)%7;
+  for(let i=1;i<=tail;i++)cells+=`<div class="cal-day other">${i}</div>`;
+  $('#cal-panel').innerHTML=`<div class="cal-head"><button class="cal-nav" data-nav="-1">‹</button><span>${MONTHS[calMonth]} ${calYear}</span><button class="cal-nav" data-nav="1">›</button></div><div class="cal-grid">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}${cells}</div>`;
+  $$('#cal-panel .cal-nav').forEach(b=>{b.onclick=()=>{calMonth+=Number(b.dataset.nav);if(calMonth<0){calMonth=11;calYear--;}if(calMonth>11){calMonth=0;calYear++;}renderCalendar();};});
+}
+
+/* ============ QUICK SETTINGS ============ */
+function buildQuickSettings(){
+  const panel=$('#qs-panel');
+  panel.innerHTML=`
+    <div class="qs-grid">
+      <button class="qs-tile on" data-act="wifi">📶 Wi-Fi</button>
+      <button class="qs-tile" data-act="bt">🔵 Bluetooth</button>
+      <button class="qs-tile${state.theme==='dark'?' on':''}" data-act="theme">🌙 Тема</button>
+      <button class="qs-tile" data-act="wall">🖼 Обои</button>
+    </div>
+    <div class="qs-slider"><span>🔈</span><input type="range" min="0" max="100" value="65"><span class="qs-vol" style="font-size:12px;color:var(--fg-dim)">65%</span></div>
+    <div class="qs-row"><span>👤 user</span><button id="qs-power" title="Завершение">⏻</button></div>`;
+  panel.querySelectorAll('.qs-tile').forEach(btn=>{
+    btn.onclick=()=>{
+      const act=btn.dataset.act;
+      if(act==='theme'){setTheme(state.theme==='dark'?'light':'dark');btn.classList.toggle('on',state.theme==='dark');}
+      else if(act==='wall'){cycleWallpaper();btn.classList.add('on');setTimeout(()=>btn.classList.remove('on'),250);}
+      else btn.classList.toggle('on');
+    };
+  });
+  const slider=panel.querySelector('input[type=range]');
+  const label=panel.querySelector('.qs-vol');
+  slider.oninput=()=>{label.textContent=slider.value+'%';};
+  panel.querySelector('#qs-power').onclick=()=>{
+    if(confirm('Завершить сеанс? Все окна будут закрыты.')){
+      [...openWindows.keys()].forEach(id=>closeWindow(id));closePopovers();
+    }
+  };
+}
+function closePopovers(){$('#qs-panel').classList.add('hidden');$('#cal-panel').classList.add('hidden');}
+$('#activities').onclick=()=>$('#overview').classList.contains('show')?closeOverview():openOverview();
+$('#tb-clock').onclick=e=>{e.stopPropagation();const c=$('#cal-panel');const h=c.classList.contains('hidden');closePopovers();if(h){renderCalendar();c.classList.remove('hidden');}};
+$('#tb-qs').onclick=e=>{e.stopPropagation();const p=$('#qs-panel');const h=p.classList.contains('hidden');closePopovers();if(h)p.classList.remove('hidden');};
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('.popover')&&!e.target.closest('#tb-clock')&&!e.target.closest('#tb-qs'))closePopovers();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('#overview').classList.contains('show'))closeOverview();else closePopovers();}});
+$('#desktop').addEventListener('pointerdown',e=>{if(e.target.id==='desktop'&&$('#overview').classList.contains('show'))closeOverview();});
+
+/* ============ STORE ============ */
+function initStore(body){
+  body.innerHTML=`<div class="store-app"><div class="store-toolbar"><input class="store-search" placeholder="Поиск приложений…" autocomplete="off"><div class="store-cats"></div></div><div class="store-grid"></div></div>`;
+  renderStore(body);
+  body.querySelector('.store-search').addEventListener('input',()=>renderStore(body));
+}
+function renderStore(body){
+  if(!body)return;
+  const search=(body.querySelector('.store-search')?.value||'').toLowerCase().trim();
+  const activeCat=(body.querySelector('.store-cat.active')?.dataset.cat)||'Все';
+  const cats=['Все','Игры','Продуктивность','Мультимедиа','Утилиты','Разработка','Система'];
+  const catsEl=body.querySelector('.store-cats');
+  catsEl.innerHTML=cats.map(c=>`<button class="store-cat${c===activeCat?' active':''}" data-cat="${c}">${c}</button>`).join('');
+  catsEl.querySelectorAll('.store-cat').forEach(b=>b.onclick=()=>{catsEl.querySelectorAll('.store-cat').forEach(c=>c.classList.remove('active'));b.classList.add('active');renderStore(body);});
+  const grid=body.querySelector('.store-grid');
+  const ids=Object.keys(APP_CATALOG).filter(id=>{
+    const app=APP_CATALOG[id];
+    if(activeCat!=='Все'&&app.category!==activeCat)return false;
+    if(search&&!app.name.toLowerCase().includes(search)&&!app.desc.toLowerCase().includes(search))return false;
+    return true;
+  });
+  if(!ids.length){grid.innerHTML='<div class="store-empty">Ничего не найдено</div>';return;}
+  grid.innerHTML=ids.map(id=>{
+    const app=APP_CATALOG[id];const inst=state.installed.includes(id);
+    let btn;
+    if(app.preinstalled)btn=`<button class="store-btn installed" disabled>Системное</button>`;
+    else if(inst)btn=`<button class="store-btn installed" data-uninstall="${id}">Удалить</button>`;
+    else btn=`<button class="store-btn" data-install="${id}">Установить</button>`;
+    return `<div class="store-card"><div class="store-card-icon" style="background:linear-gradient(150deg,${app.c1},${app.c2})">${app.icon}</div><div class="store-card-body"><div class="store-card-name">${app.name}${app.preinstalled?'<span class="store-badge">система</span>':''}</div><div class="store-card-desc">${app.desc}</div><div class="store-card-meta"><span>${app.size} · ${app.category}</span>${btn}</div><div class="store-progress" style="display:none"><div class="store-progress-bar"></div></div></div></div>`;
+  }).join('');
+  grid.querySelectorAll('[data-install]').forEach(btn=>{
+    btn.onclick=()=>{
+      const id=btn.dataset.install;const card=btn.closest('.store-card');
+      const prog=card.querySelector('.store-progress');const bar=card.querySelector('.store-progress-bar');
+      prog.style.display='block';btn.disabled=true;btn.textContent='Установка…';
+      let p=0;const t=setInterval(()=>{
+        p+=Math.random()*18+4;
+        if(p>=100){p=100;clearInterval(t);bar.style.width='100%';setTimeout(()=>installApp(id),200);}
+        else bar.style.width=p+'%';
+      },90);
+    };
+  });
+  grid.querySelectorAll('[data-uninstall]').forEach(btn=>{
+    btn.onclick=()=>{const id=btn.dataset.uninstall;if(confirm(`Удалить «${APP_CATALOG[id].name}»?`))uninstallApp(id);};
+  });
+}
+
+/* ============ TERMINAL ============ */
+function initTerminal(body){
+  body.innerHTML=`<div class="term"><div class="term-out"></div><div class="term-inputline"><span class="term-prompt">user@gnome:~$</span><input class="term-input" spellcheck="false" autocomplete="off"></div></div>`;
+  const term=body.querySelector('.term');const out=body.querySelector('.term-out');const input=body.querySelector('.term-input');
+  const print=h=>{out.insertAdjacentHTML('beforeend','<div>'+h+'</div>');term.scrollTop=term.scrollHeight;};
+  print('<pre>  ╭──────────╮   GNOME WebOS 2.0\n  │  ◕    ◕  │   Введите <b>help</b>\n  │    ▂▂    │\n  ╰──────────╯</pre>');
+  const FILES=['Документы','Загрузки','Изображения','Музыка','Видео','Рабочий стол','README.md','.bashrc'];
+  const CMDS={
+    help(){print('Команды:<br>&nbsp;&nbsp;<b>help</b>, <b>ls</b>, <b>pwd</b>, <b>echo</b>, <b>date</b>, <b>whoami</b>, <b>neofetch</b>, <b>apps</b>, <b>open &lt;app&gt;</b>, <b>theme dark|light</b>, <b>clear</b>, <b>exit</b>');},
+    ls(){print(FILES.map(f=>f.includes('.')?`<span style="color:#62a0ea">${esc(f)}</span>`:`<span style="color:#3584e4;font-weight:700">${esc(f)}/</span>`).join('&nbsp;&nbsp;'));},
+    pwd(){print('/home/user');},
+    echo(a){print(esc(a.join(' ')));},
+    date(){print(new Date().toLocaleString('ru-RU'));},
+    whoami(){print('user');},
+    neofetch(){print('<pre>  ╭──────────╮   <b>user@gnome</b>\n  │  ◕    ◕  │   ─────────────────\n  │    ▂▂    │   ОС: GNOME WebOS 2.0\n  ╰──────────╯   Оболочка: GNOME (JS)\n                 Установлено: '+state.installed.length+' приложений\n                 Разрешение: '+window.innerWidth+'x'+window.innerHeight+'</pre>');},
+    apps(){print('Установлено: '+state.installed.map(id=>APP_CATALOG[id].name).join(', '));},
+    open(a){const map={'files':'files','файлы':'files','terminal':'terminal','терминал':'terminal','editor':'editor','calc':'calc','калькулятор':'calc','settings':'settings','store':'store','магазин':'store','notes':'notes','заметки':'notes'};const t=map[(a[0]||'').toLowerCase()];if(t&&state.installed.includes(t)){openApp(t);print('Запуск: '+APP_CATALOG[t].name);}else print('<span style="color:#e01b24">Не найдено: '+esc(a[0]||'')+'</span>');},
+    theme(a){if(a[0]==='dark'||a[0]==='light'){setTheme(a[0]);print('Тема: '+a[0]);}else print('theme dark|light');},
+    clear(){out.innerHTML='';},
+    exit(){print('Выход…');setTimeout(()=>{const w=body.closest('.window');if(w)closeWindow(w.dataset.id);},300);}
+  };
+  input.addEventListener('keydown',e=>{
+    if(e.key!=='Enter')return;
+    const raw=input.value;input.value='';
+    print(`<span style="color:#2ec27e">user@gnome:~$</span> ${esc(raw)}`);
+    const parts=raw.trim().split(/\s+/);const cmd=(parts.shift()||'').toLowerCase();
+    if(!cmd)return;
+    if(CMDS[cmd]){try{CMDS[cmd](parts);}catch(err){print('Ошибка: '+err.message);}}
+    else print(`<span style="color:#e01b24">Команда не найдена: ${esc(cmd)}</span>`);
+  });
+  body.addEventListener('click',()=>input.focus());
+  setTimeout(()=>input.focus(),60);
+}
+
+/* ============ FILES ============ */
+const ROOT_FS={name:'Домой',type:'dir',children:[
+  {name:'Документы',type:'dir',children:[{name:'резюме.txt',type:'file',size:'4,2 КБ'},{name:'заметки.md',type:'file',size:'1,1 КБ'}]},
+  {name:'Загрузки',type:'dir',children:[{name:'ubuntu-24.04.iso',type:'file',size:'5,9 ГБ'}]},
+  {name:'Изображения',type:'dir',children:[{name:'обои.png',type:'file',size:'2,4 МБ'}]},
+  {name:'Музыка',type:'dir',children:[]},
+  {name:'Видео',type:'dir',children:[]},
+  {name:'README.md',type:'file',size:'812 Б'},
+  {name:'.bashrc',type:'file',size:'3,1 КБ'}
+]};
+function initFiles(body){
+  const stack=[ROOT_FS];
+  body.innerHTML=`<div class="files"><div class="files-toolbar"><button class="files-back">←</button><div class="files-crumbs"></div></div><div class="files-grid"></div></div>`;
+  const grid=body.querySelector('.files-grid');const crumbs=body.querySelector('.files-crumbs');const back=body.querySelector('.files-back');
+  function render(){
+    const cur=stack[stack.length-1];
+    back.disabled=stack.length<=1;
+    crumbs.textContent=stack.map(n=>n.name).join('  ›  ');
+    grid.innerHTML='';
+    if(!cur.children||!cur.children.length){grid.innerHTML='<div class="files-empty">Папка пуста</div>';return;}
+    cur.children.forEach(item=>{
+      const el=document.createElement('div');
+      el.className='files-item';
+      el.innerHTML=`<div class="files-ico">${item.type==='dir'?'📁':'📄'}</div><div class="files-name">${esc(item.name)}</div><div class="files-meta">${item.type==='dir'?(item.children?item.children.length:0)+' эл.':(item.size||'—')}</div>`;
+      el.onclick=()=>{grid.querySelectorAll('.files-item').forEach(i=>i.classList.remove('sel'));el.classList.add('sel');};
+      el.ondblclick=()=>{if(item.type==='dir'){stack.push(item);render();}};
+      grid.appendChild(el);
+    });
+  }
+  back.onclick=()=>{if(stack.length>1){stack.pop();render();}};
+  render();
+}
+
+/* ============ EDITOR ============ */
+function initEditor(body){
+  body.innerHTML='<textarea class="editor-area" spellcheck="false" placeholder="Начните печатать…"></textarea>';
+  body.querySelector('textarea').focus();
+}
+
+/* ============ CALC ============ */
+function initCalc(body){
+  const K=[['C','act'],['⌫','act'],['%','act'],['÷','op'],['7','num'],['8','num'],['9','num'],['×','op'],['4','num'],['5','num'],['6','num'],['−','op'],['1','num'],['2','num'],['3','num'],['+','op'],['0','num wide'],['.','num'],['=','eq']];
+  body.innerHTML=`<div class="calc"><div class="calc-display">0</div><div class="calc-keys">${K.map(([k,c])=>`<button class="${c}" data-k="${k}">${k}</button>`).join('')}</div></div>`;
+  const d=body.querySelector('.calc-display');let ex='';
+  const show=v=>{d.textContent=v===''?'0':v;};
+  function ev(raw){
+    const c=raw.replace(/÷/g,'/').replace(/×/g,'*').replace(/−/g,'-');
+    if(/[^0-9+\-*/().%\s]/.test(c))throw new Error('bad');
+    const v=Function('"use strict";return('+c+')')();
+    if(typeof v!=='number'||!isFinite(v))throw new Error('bad');
+    return Math.round(v*1e10)/1e10;
+  }
+  body.querySelectorAll('.calc-keys button').forEach(b=>{
+    b.onclick=()=>{
+      const k=b.dataset.k;
+      if(k==='C'){ex='';show('');return;}
+      if(k==='⌫'){ex=ex.slice(0,-1);show(ex);return;}
+      if(k==='='){try{ex=String(ev(ex));show(ex);}catch(e){show('Ошибка');ex='';}return;}
+      ex+=k;show(ex);
+    };
+  });
+}
+
+/* ============ SETTINGS ============ */
+function initSettings(body){
+  const ACC=['#3584e4','#26a269','#e5a50a','#e01b24','#813d9c','#c64600'];
+  body.innerHTML=`<div class="settings">
+    <div class="set-group"><div class="set-title">Оформление</div>
+      <div class="set-row"><div><div class="set-row-label">Тема</div><div class="set-row-sub">Светлая/тёмная</div></div><div class="seg" id="seg-theme"><button data-theme="light">Светлая</button><button data-theme="dark">Тёмная</button></div></div>
+      <div class="set-row"><div><div class="set-row-label">Обои</div><div class="set-row-sub">Сменить фон</div></div><button class="btn" id="btn-wall">Сменить</button></div>
+      <div class="set-row"><div><div class="set-row-label">Акцентный цвет</div><div class="set-row-sub">Кнопки и выделение</div></div><div class="swatches" id="swatches">${ACC.map(c=>`<div class="swatch" data-c="${c}" style="background:${c}"></div>`).join('')}</div></div>
+    </div>
+    <div class="set-group"><div class="set-title">Приложения</div><div class="app-list" id="app-list"></div></div>
+    <div class="set-group"><div class="set-title">Система</div>
+      <div class="set-row"><div><div class="set-row-label">О системе</div><div class="set-row-sub">GNOME WebOS 2.0</div></div><button class="btn ghost" id="btn-about">Открыть</button></div>
+      <div class="set-row"><div><div class="set-row-label">Сброс данных</div><div class="set-row-sub">Удалить все настройки и данные</div></div><button class="btn ghost" id="btn-reset">Сбросить</button></div>
+    </div>
+  </div>`;
+  const seg=body.querySelector('#seg-theme');
+  const sync=()=>{seg.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.theme===state.theme));};
+  seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{setTheme(b.dataset.theme);sync();});
+  sync();
+  body.querySelector('#btn-wall').onclick=()=>cycleWallpaper();
+  const sw=body.querySelector('#swatches');
+  const syncAccent=()=>sw.querySelectorAll('.swatch').forEach(s=>s.classList.toggle('active',s.dataset.c===state.accent));
+  sw.querySelectorAll('.swatch').forEach(s=>s.onclick=()=>{setAccent(s.dataset.c);syncAccent();});
+  syncAccent();
+  const list=body.querySelector('#app-list');
+  function renderList(){
+    list.innerHTML=state.installed.map(id=>{
+      const app=APP_CATALOG[id];if(!app)return '';
+      const badge=app.preinstalled?'<span class="badge">система</span>':'';
+      const btn=app.preinstalled?'':`<button class="uninst" data-uninst="${id}">Удалить</button>`;
+      return `<div class="app-list-item"><div class="app-icon" style="--c1:${app.c1};--c2:${app.c2};width:32px;height:32px;font-size:16px;border-radius:8px">${app.icon}</div><div class="name">${app.name}</div>${badge}${btn}</div>`;
+    }).join('');
+    list.querySelectorAll('[data-uninst]').forEach(b=>b.onclick=()=>{
+      if(confirm(`Удалить «${APP_CATALOG[b.dataset.uninst].name}»?`)){uninstallApp(b.dataset.uninst);renderList();}
+    });
+  }
+  renderList();
+  body.querySelector('#btn-about').onclick=()=>openApp('about');
+  body.querySelector('#btn-reset').onclick=()=>{
+    if(confirm('Сбросить все данные? Система вернётся к начальному состоянию.')){
+      localStorage.removeItem(STORAGE_KEY);location.reload();
+    }
+  };
+}
+
+/* ============ ABOUT ============ */
+function initAbout(body){
+  body.innerHTML=`<div class="about"><div class="about-logo">🐧</div><h2>GNOME WebOS</h2><p>Веб-рабочий стол на HTML, CSS и JavaScript</p><div class="about-list">
+    <div><span>Версия</span><span>2.0 «Adwaita»</span></div>
+    <div><span>Оболочка</span><span>GNOME Shell (веб)</span></div>
+    <div><span>Движок</span><span>JavaScript</span></div>
+    <div><span>Разрешение</span><span>${window.innerWidth} × ${window.innerHeight}</span></div>
+    <div><span>Тема</span><span>${state.theme==='dark'?'Тёмная':'Светлая'}</span></div>
+    <div><span>Приложений</span><span>${state.installed.length} установлено</span></div>
+    <div><span>Пользователь</span><span>user</span></div>
+  </div></div>`;
+}
+
+/* ============ NOTES ============ */
+function initNotes(body){
+  body.innerHTML=`<div class="notes-app"><div class="notes-sidebar"><button class="notes-new">+ Новая заметка</button><div class="notes-list"></div></div><div class="notes-main"><input class="notes-title" placeholder="Заголовок"><textarea class="notes-body" placeholder="Текст заметки…"></textarea><div class="notes-meta"></div></div></div>`;
+  let curId=state.notes[0]?.id||null;
+  const listEl=body.querySelector('.notes-list');
+  const titleEl=body.querySelector('.notes-title');
+  const bodyEl=body.querySelector('.notes-body');
+  const metaEl=body.querySelector('.notes-meta');
+  function renderList(){
+    listEl.innerHTML=state.notes.map(n=>`<div class="notes-item${n.id===curId?' active':''}" data-id="${n.id}"><div class="notes-item-title">${esc(n.title||'Без названия')}</div><div class="notes-item-date">${new Date(n.updated).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div></div>`).join('')||'<div style="padding:10px;font-size:12px;color:var(--fg-dim);text-align:center">Нет заметок</div>';
+    listEl.querySelectorAll('.notes-item').forEach(el=>el.onclick=()=>{curId=Number(el.dataset.id);load();renderList();});
+  }
+  function load(){
+    const n=state.notes.find(x=>x.id===curId);
+    if(!n){titleEl.value='';bodyEl.value='';metaEl.textContent='';return;}
+    titleEl.value=n.title||'';bodyEl.value=n.body||'';
+    metaEl.textContent='Обновлено: '+new Date(n.updated).toLocaleString('ru-RU');
+  }
+  function save(){
+    const n=state.notes.find(x=>x.id===curId);if(!n)return;
+    n.title=titleEl.value;n.body=bodyEl.value;n.updated=Date.now();
+    saveState();
+  }
+  body.querySelector('.notes-new').onclick=()=>{
+    const n={id:Date.now(),title:'Новая заметка',body:'',updated:Date.now()};
+    state.notes.unshift(n);saveState();curId=n.id;renderList();load();
+    titleEl.focus();titleEl.select();
+  };
+  titleEl.addEventListener('input',save);
+  bodyEl.addEventListener('input',save);
+  renderList();load();
+}
+
+/* ============ TODO ============ */
+function initTodo(body){
+  body.innerHTML=`<div class="todo-app"><div class="todo-input-row"><input class="todo-input" placeholder="Новая задача…" maxlength="200"><button class="todo-add">+</button></div><div class="todo-list"></div></div>`;
+  const listEl=body.querySelector('.todo-list');const input=body.querySelector('.todo-input');
+  function render(){
+    if(!state.todos.length){listEl.innerHTML='<div class="todo-empty">Задач пока нет</div>';return;}
+    listEl.innerHTML=state.todos.map(t=>`<div class="todo-item${t.done?' done':''}"><input type="checkbox" class="todo-check" ${t.done?'checked':''} data-id="${t.id}"><span class="todo-text">${esc(t.text)}</span><button class="todo-del" data-id="${t.id}">✕</button></div>`).join('');
+    listEl.querySelectorAll('.todo-check').forEach(c=>c.onchange=()=>{
+      const t=state.todos.find(x=>x.id===Number(c.dataset.id));
+      if(t){t.done=c.checked;saveState();render();}
+    });
+    listEl.querySelectorAll('.todo-del').forEach(b=>b.onclick=()=>{
+      state.todos=state.todos.filter(x=>x.id!==Number(b.dataset.id));saveState();render();
+    });
+  }
+  body.querySelector('.todo-add').onclick=add;
+  input.addEventListener('keydown',e=>{if(e.key==='Enter')add();});
+  function add(){
+    const v=input.value.trim();if(!v)return;
+    state.todos.push({id:Date.now(),text:v,done:false});saveState();input.value='';render();
+  }
+  render();
+}
+
+/* ============ PAINT ============ */
+function initPaint(body){
+  body.innerHTML=`<div class="paint-app"><div class="paint-toolbar"><input type="color" value="#3584e4"><input type="range" min="1" max="40" value="6"><button class="paint-btn" id="p-clear">Очистить</button><button class="paint-btn" id="p-save">Сохранить</button></div><div class="paint-canvas-wrap"><canvas class="paint-canvas" width="600" height="400"></canvas></div></div>`;
+  const canvas=body.querySelector('canvas');const ctx=canvas.getContext('2d');
+  const color=body.querySelector('input[type=color]');
+  const size=body.querySelector('input[type=range]');
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+  let drawing=false,lastX=0,lastY=0;
+  function pos(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*(canvas.width/r.width),y:(e.clientY-r.top)*(canvas.height/r.height)};}
+  canvas.addEventListener('pointerdown',e=>{drawing=true;const p=pos(e);lastX=p.x;lastY=p.y;});
+  canvas.addEventListener('pointermove',e=>{
+    if(!drawing)return;
+    const p=pos(e);
+    ctx.strokeStyle=color.value;ctx.lineWidth=Number(size.value);ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();
+    lastX=p.x;lastY=p.y;
+  });
+  canvas.addEventListener('pointerup',()=>{drawing=false;});
+  canvas.addEventListener('pointerleave',()=>{drawing=false;});
+  body.querySelector('#p-clear').onclick=()=>{ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);};
+  body.querySelector('#p-save').onclick=()=>{
+    const a=document.createElement('a');
+    a.download='drawing-'+Date.now()+'.png';a.href=canvas.toDataURL();
+    a.click();toast('Изображение сохранено','💾');
+  };
+}
+
+/* ============ PHOTOS ============ */
+const photoSession=[];
+function initPhotos(body){
+  body.innerHTML=`<div class="photos-app"><label class="photos-upload">📷 Загрузить фотографии<input type="file" accept="image/*" multiple></label><div class="photos-grid"></div></div>`;
+  const grid=body.querySelector('.photos-grid');
+  function render(){
+    if(!photoSession.length){grid.innerHTML='<div class="photos-empty">Нет изображений. Загрузите фотографии.</div>';return;}
+    grid.innerHTML=photoSession.map((p,i)=>`<div class="photo-thumb" data-i="${i}"><img src="${p}" alt=""></div>`).join('');
+    grid.querySelectorAll('.photo-thumb').forEach(el=>el.onclick=()=>view(photoSession[Number(el.dataset.i)]));
+  }
+  function view(src){
+    const ov=document.createElement('div');
+    ov.className='photos-view';
+    ov.innerHTML=`<img src="${src}" alt="">`;
+    ov.onclick=()=>ov.remove();
+    body.appendChild(ov);
+  }
+  body.querySelector('input[type=file]').onchange=e=>{
+    [...e.target.files].forEach(f=>{
+      if(!f.type.startsWith('image/'))return;
+      const r=new FileReader();
+      r.onload=ev=>{photoSession.push(ev.target.result);render();};
+      r.readAsDataURL(f);
+    });
+  };
+  render();
+}
+
+/* ============ MUSIC ============ */
+function initMusic(body){
+  body.innerHTML=`<div class="music-app"><div><div class="music-title">Синтезатор</div><div class="music-buttons" id="m-btns"></div></div><div class="music-info">Нажмите на ноту — зазвучит тон. Работает через Web Audio API.</div></div>`;
+  const btns=body.querySelector('#m-btns');
+  const NOTES=[['До',261.63],['Ре',293.66],['Ми',329.63],['Фа',349.23],['Соль',392.00],['Ля',440.00],['Си',493.88],['До2',523.25]];
+  let ctx=null;
+  btns.innerHTML=NOTES.map(([n,f])=>`<button data-f="${f}">${n}</button>`).join('');
+  btns.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator();const g=ctx.createGain();
+    o.frequency.value=Number(b.dataset.f);o.type='sine';
+    o.connect(g);g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.3,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.6);
+    o.start();o.stop(ctx.currentTime+0.7);
+    const note=document.createElement('span');
+    note.className='music-note';note.textContent=b.textContent;
+    body.querySelector('.music-info').appendChild(note);
+    setTimeout(()=>note.remove(),600);
+  });
+}
+
+/* ============ 2048 ============ */
+function init2048(body){
+  body.innerHTML=`<div class="g2048-app"><div class="g2048-header"><div class="g2048-score">Счёт: 0</div><button class="paint-btn" id="g-new">Новая</button></div><div class="g2048-grid" id="g-grid"></div><div class="snake-hint">Управление: стрелки или W/A/S/D</div></div>`;
+  const gridEl=body.querySelector('#g-grid');const scoreEl=body.querySelector('.g2048-score');
+  let grid,score,best=Number(localStorage.getItem('g2048-best')||0);
+  const colors={2:'#eee4da',4:'#ede0c8',8:'#f2b179',16:'#f59563',32:'#f67c5f',64:'#f65e3b',128:'#edcf72',256:'#edcc61',512:'#edc850',1024:'#edc53f',2048:'#edc22e'};
+  function init(){
+    grid=Array(4).fill().map(()=>Array(4).fill(0));
+    score=0;add();add();render();
+  }
+  function add(){
+    const empty=[];for(let r=0;r<4;r++)for(let c=0;c<4;c++)if(!grid[r][c])empty.push([r,c]);
+    if(!empty.length)return;
+    const [r,c]=empty[Math.floor(Math.random()*empty.length)];
+    grid[r][c]=Math.random()<0.9?2:4;
+  }
+  function render(){
+    gridEl.innerHTML='';
+    for(let r=0;r<4;r++)for(let c=0;c<4;c++){
+      const v=grid[r][c];
+      const el=document.createElement('div');
+      el.className='g2048-cell';
+      el.textContent=v||'';
+      if(v){el.style.background=colors[v]||'#3c3a32';el.style.color=v>4?'#f9f6f2':'#776e65';}
+      gridEl.appendChild(el);
+    }
+    if(score>best){best=score;localStorage.setItem('g2048-best',best);}
+    scoreEl.textContent=`Счёт: ${score} | Рекорд: ${best}`;
+  }
+  function slide(row){
+    let arr=row.filter(x=>x);
+    for(let i=0;i<arr.length-1;i++){
+      if(arr[i]===arr[i+1]){arr[i]*=2;score+=arr[i];arr[i+1]=0;}
+    }
+    arr=arr.filter(x=>x);
+    while(arr.length<4)arr.push(0);
+    return arr;
+  }
+  function move(dir){
+    const old=JSON.stringify(grid);
+    if(dir==='left'){for(let r=0;r<4;r++)grid[r]=slide(grid[r]);}
+    else if(dir==='right'){for(let r=0;r<4;r++)grid[r]=slide(grid[r].slice().reverse()).reverse();}
+    else if(dir==='up'){for(let c=0;c<4;c++){const col=slide([grid[0][c],grid[1][c],grid[2][c],grid[3][c]]);for(let r=0;r<4;r++)grid[r][c]=col[r];}}
+    else if(dir==='down'){for(let c=0;c<4;c++){const col=slide([grid[3][c],grid[2][c],grid[1][c],grid[0][c]]);for(let r=0;r<4;r++)grid[3-r][c]=col[r];}}
+    if(JSON.stringify(grid)!==old){add();render();}
+  }
+  const keyHandler=e=>{
+    if(!body.isConnected){document.removeEventListener('keydown',keyHandler);return;}
+    const k=e.key.toLowerCase();
+    const map={arrowleft:'left',arrowright:'right',arrowup:'up',arrowdown:'down',a:'left',d:'right',w:'up',s:'down'};
+    if(map[k]){e.preventDefault();move(map[k]);}
+  };
+  document.addEventListener('keydown',keyHandler);
+  body.querySelector('#g-new').onclick=init;
+  init();
+}
+
+/* ============ SNAKE ============ */
+function initSnake(body){
+  body.innerHTML=`<div class="snake-app"><div class="snake-header"><span>Счёт: <span id="s-score">0</span></span><span>Рекорд: <span id="s-best">0</span></span></div><canvas class="snake-canvas" width="400" height="400"></canvas><div class="snake-hint">Стрелки или W/A/S/D. Пауза: пробел</div></div>`;
+  const canvas=body.querySelector('canvas');const ctx=canvas.getContext('2d');
+  const SIZE=20,CELL=20;
+  let snake,dir,nextDir,food,score,paused,gameOver,timer;
+  let best=Number(localStorage.getItem('snake-best')||0);
+  body.querySelector('#s-best').textContent=best;
+  function reset(){
+    snake=[{x:10,y:10},{x:9,y:10},{x:8,y:10}];
+    dir={x:1,y:0};nextDir={x:1,y:0};
+    food={x:15,y:10};score=0;paused=false;gameOver=false;
+    body.querySelector('#s-score').textContent=0;
+    if(timer)clearInterval(timer);
+    timer=setInterval(tick,110);
+  }
+  function tick(){
+    if(!body.isConnected){clearInterval(timer);return;}
+    if(paused||gameOver)return;
+    dir=nextDir;
+    const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+    if(head.x<0||head.x>=SIZE||head.y<0||head.y>=SIZE||snake.some(s=>s.x===head.x&&s.y===head.y)){gameOver=true;draw();return;}
+    snake.unshift(head);
+    if(head.x===food.x&&head.y===food.y){
+      score++;body.querySelector('#s-score').textContent=score;
+      if(score>best){best=score;localStorage.setItem('snake-best',best);body.querySelector('#s-best').textContent=best;}
+      do{food={x:Math.floor(Math.random()*SIZE),y:Math.floor(Math.random()*SIZE)};}while(snake.some(s=>s.x===food.x&&s.y===food.y));
+    }else snake.pop();
+    draw();
+  }
+  function draw(){
+    ctx.fillStyle='#1a1a1a';ctx.fillRect(0,0,400,400);
+    ctx.fillStyle='#e01b24';ctx.fillRect(food.x*CELL+2,food.y*CELL+2,CELL-4,CELL-4);
+    snake.forEach((s,i)=>{ctx.fillStyle=i===0?'#8ff0a4':'#2ec27e';ctx.fillRect(s.x*CELL+1,s.y*CELL+1,CELL-2,CELL-2);});
+    if(gameOver){ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,400,400);ctx.fillStyle='#fff';ctx.font='bold 30px sans-serif';ctx.textAlign='center';ctx.fillText('Игра окончена',200,190);ctx.font='16px sans-serif';ctx.fillText('Нажмите R для перезапуска',200,220);}
+    if(paused&&!gameOver){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(0,0,400,400);ctx.fillStyle='#fff';ctx.font='bold 24px sans-serif';ctx.textAlign='center';ctx.fillText('Пауза',200,200);}
+  }
+  const keyHandler=e=>{
+    if(!body.isConnected){document.removeEventListener('keydown',keyHandler);return;}
+    const k=e.key.toLowerCase();
+    if(k==='r'){reset();draw();return;}
+    if(k===' '){paused=!paused;draw();e.preventDefault();return;}
+    const m={arrowleft:{x:-1,y:0},arrowright:{x:1,y:0},arrowup:{x:0,y:-1},arrowdown:{x:0,y:1},a:{x:-1,y:0},d:{x:1,y:0},w:{x:0,y:-1},s:{x:0,y:1}};
+    const nd=m[k];
+    if(nd&&!(nd.x===-dir.x&&nd.y===-dir.y)){nextDir=nd;e.preventDefault();}
+  };
+  document.addEventListener('keydown',keyHandler);
+  reset();draw();
+}
+
+/* ============ MINES ============ */
+function initMines(body){
+  body.innerHTML=`<div class="mines-app"><div class="mines-header"><span>💣 <span id="m-mines">15</span></span><button class="paint-btn" id="m-new">Новая игра</button><span>⏱ <span id="m-timer">0</span></span></div><div class="mines-grid" id="m-grid"></div><div class="snake-hint">ЛКМ — открыть, ПКМ — флажок</div></div>`;
+  const SIZE=10,MINES=15;
+  const gridEl=body.querySelector('#m-grid');
+  let cells,revealed,flagged,started,timerId,gameOver,won;
+  function init(){
+    cells=[];revealed=0;flagged=0;started=false;gameOver=false;won=false;
+    if(timerId)clearInterval(timerId);
+    body.querySelector('#m-timer').textContent='0';
+    gridEl.style.gridTemplateColumns=`repeat(${SIZE},1fr)`;
+    gridEl.innerHTML='';
+    for(let i=0;i<SIZE*SIZE;i++)cells.push({mine:false,open:false,flag:false,near:0});
+    // расставить мины
+    let placed=0;
+    while(placed<MINES){
+      const i=Math.floor(Math.random()*cells.length);
+      if(!cells[i].mine){cells[i].mine=true;placed++;}
+    }
+    // подсчитать соседей
+    for(let i=0;i<cells.length;i++){
+      if(cells[i].mine)continue;
+      const r=Math.floor(i/SIZE),c=i%SIZE;
+      let cnt=0;
+      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+        if(!dr&&!dc)continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<SIZE&&nc>=0&&nc<SIZE&&cells[nr*SIZE+nc].mine)cnt++;
+      }
+      cells[i].near=cnt;
+    }
+    // отрисовать
+    cells.forEach((cell,i)=>{
+      const el=document.createElement('button');
+      el.className='mines-cell';el.dataset.i=i;
+      el.addEventListener('click',()=>reveal(i));
+      el.addEventListener('contextmenu',e=>{e.preventDefault();toggleFlag(i);});
+      gridEl.appendChild(el);
+    });
+    updateTimer();
+  }
+  function updateTimer(){
+    if(!started)return;
+    let sec=0;
+    if(timerId)clearInterval(timerId);
+    timerId=setInterval(()=>{
+      if(!body.isConnected){clearInterval(timerId);return;}
+      sec++;body.querySelector('#m-timer').textContent=sec;
+    },1000);
+  }
+  function render(){
+    cells.forEach((cell,i)=>{
+      const el=gridEl.children[i];
+      el.className='mines-cell';
+      if(cell.open){
+        el.classList.add('open');
+        if(cell.mine){el.classList.add('mine');el.textContent='💣';}
+        else if(cell.near){el.textContent=cell.near;el.dataset.n=cell.near;}
+      }else if(cell.flag){el.classList.add('flag');el.textContent='🚩';}
+      else el.textContent='';
+    });
+  }
+  function reveal(i){
+    if(gameOver||cells[i].flag||cells[i].open)return;
+    if(!started){started=true;updateTimer();}
+    cells[i].open=true;
+    if(cells[i].mine){gameOver=true;lose();return;}
+    revealed++;
+    if(cells[i].near===0){
+      const r=Math.floor(i/SIZE),c=i%SIZE;
+      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+        if(!dr&&!dc)continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<SIZE&&nc>=0&&nc<SIZE){
+          const ni=nr*SIZE+nc;
+          if(!cells[ni].open&&!cells[ni].flag)reveal(ni);
+        }
+      }
+    }
+    render();
+    checkWin();
+  }
+  function toggleFlag(i){
+    if(gameOver||cells[i].open)return;
+    cells[i].flag=!cells[i].flag;
+    render();
+  }
+  function lose(){
+    cells.forEach(c=>{if(c.mine)c.open=true;});
+    render();
+    if(timerId)clearInterval(timerId);
+    setTimeout(()=>toast('Вы подорвались! Нажмите «Новая игра»','💥'),100);
+  }
+  function checkWin(){
+    if(revealed===SIZE*SIZE-MINES&&!gameOver){
+      won=true;gameOver=true;
+      if(timerId)clearInterval(timerId);
+      toast('Победа! Все мины найдены','🏆');
+    }
+  }
+  body.querySelector('#m-new').onclick=init;
+  init();
+}
+
+/* ============ TIMER ============ */
+function initTimer(body){
+  body.innerHTML=`<div class="timer-app"><div class="timer-tabs"><button class="active" data-t="sw">Секундомер</button><button data-t="cd">Таймер</button></div><div class="timer-display" id="t-disp">00:00.00</div><div class="timer-inputs" id="t-inputs" style="display:none"><input type="number" id="t-min" value="5" min="0" max="99"><span>мин</span><input type="number" id="t-sec" value="0" min="0" max="59"><span>сек</span></div><div class="timer-buttons"><button id="t-start">Старт</button><button class="ghost" id="t-reset">Сброс</button></div></div>`;
+  const disp=body.querySelector('#t-disp');
+  const inputs=body.querySelector('#t-inputs');
+  const tabs=body.querySelectorAll('.timer-tabs button');
+  let mode='sw',running=false,startTime=0,elapsed=0,rafId=null,cdTarget=0;
+  function fmt(ms){
+    if(mode==='sw'){
+      const total=ms;
+      const min=Math.floor(total/60000);
+      const sec=Math.floor((total%60000)/1000);
+      const cs=Math.floor((total%1000)/10);
+      return `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
+    }else{
+      const total=Math.max(0,Math.ceil(ms/1000));
+      const min=Math.floor(total/60);
+      const sec=total%60;
+      return `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    }
+  }
+  function loop(){
+    if(!body.isConnected){cancelAnimationFrame(rafId);return;}
+    if(!running){rafId=null;return;}
+    if(mode==='sw'){
+      disp.textContent=fmt(elapsed+performance.now()-startTime);
+    }else{
+      const left=cdTarget-performance.now();
+      if(left<=0){disp.textContent='00:00';running=false;
+        try{const a=new (window.AudioContext||window.webkitAudioContext)();const o=a.createOscillator();const g=a.createGain();o.frequency.value=880;o.connect(g);g.connect(a.destination);g.gain.setValueAtTime(0.3,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+1);o.start();o.stop(a.currentTime+1);}catch(e){}
+        toast('Время вышло!','⏰');
+        return;
+      }
+      disp.textContent=fmt(left);
+    }
+    rafId=requestAnimationFrame(loop);
+  }
+  function start(){
+    if(running){running=false;if(rafId)cancelAnimationFrame(rafId);body.querySelector('#t-start').textContent='Продолжить';return;}
+    running=true;body.querySelector('#t-start').textContent='Пауза';
+    if(mode==='sw')startTime=performance.now();
+    else{
+      if(!cdTarget||cdTarget<=performance.now()){
+        const m=Number(body.querySelector('#t-min').value)||0;
+        const s=Number(body.querySelector('#t-sec').value)||0;
+        cdTarget=performance.now()+(m*60+s)*1000;
+      }
+    }
+    if(!rafId)loop();
+  }
+  function reset(){
+    running=false;if(rafId)cancelAnimationFrame(rafId);
+    elapsed=0;cdTarget=0;
+    disp.textContent=mode==='sw'?'00:00.00':'00:00';
+    body.querySelector('#t-start').textContent='Старт';
+  }
+  tabs.forEach(t=>t.onclick=()=>{
+    tabs.forEach(x=>x.classList.remove('active'));t.classList.add('active');
+    mode=t.dataset.t;inputs.style.display=mode==='cd'?'flex':'none';
+    reset();
+  });
+  body.querySelector('#t-start').onclick=start;
+  body.querySelector('#t-reset').onclick=reset;
+}
+
+/* ============ CODE ============ */
+function initCode(body){
+  body.innerHTML=`<div class="code-app"><div class="code-toolbar"><button class="code-run">▶ Запустить</button><span style="font-size:11.5px;color:var(--fg-dim)">JavaScript в песочнице</span></div><textarea class="code-input" spellcheck="false">// Привет!
+console.log('Hello, world!');
+const a = 5, b = 7;
+console.log('Сумма:', a + b);
+console.log('Массив:', [1,2,3].map(x => x * 2));
+</textarea><iframe class="code-output" sandbox="allow-scripts"></iframe></div>`;
+  const ta=body.querySelector('.code-input');
+  const iframe=body.querySelector('.code-output');
+  body.querySelector('.code-run').onclick=()=>{
+    const code=ta.value;
+    const html=`<!DOCTYPE html><html><head><style>body{font-family:ui-monospace,Consolas,monospace;padding:12px;font-size:13px;background:#fff;color:#222;margin:0}div{padding:2px 0;border-bottom:1px solid #eee}div:last-child{border:none}.err{color:#c00}</style></head><body><script>
+      const out=parent.document.createElement('div');
+      // захватываем console
+      window.__out__ = [];
+      const oldLog = console.log;
+      console.log = function(...args){window.parent.postMessage({type:'log',text:args.map(a=>{
+        try{return typeof a==='object'?JSON.stringify(a,null,2):String(a);}catch(e){return String(a);}
+      }).join(' ')},'*');oldLog.apply(console,args);};
+      window.onerror = function(msg){window.parent.postMessage({type:'err',text:String(msg)},'*');};
+      try{${code}}catch(e){window.parent.postMessage({type:'err',text:'Error: '+e.message},'*');}
+    <\/script></body></html>`;
+    iframe.srcdoc=html;
+    setTimeout(()=>{iframe.srcdoc=html;},50);
+  };
+  // приём сообщений
+  window.addEventListener('message',e=>{
+    if(!body.isConnected)return;
+    if(e.data&&e.data.type==='log'){
+      const d=document.createElement('div');d.textContent=e.data.text;iframe.contentDocument.body.appendChild(d);
+    }
+  });
+  // лучше: показываем внутри iframe через его document напрямую
+  body.querySelector('.code-run').onclick=()=>{
+    const code=ta.value;
+    iframe.srcdoc=`<!DOCTYPE html><html><head><style>body{font-family:ui-monospace,Consolas,monospace;padding:12px;font-size:13px;background:#fff;color:#222;margin:0;line-height:1.6}div{padding:3px 0;border-bottom:1px solid #f0f0f0}.err{color:#c00}</style></head><body><script>
+      const log = (...args) => {
+        const d = document.createElement('div');
+        d.textContent = args.map(a => {
+          try { return typeof a === 'object' ? JSON.stringify(a) : String(a); }
+          catch(e) { return String(a); }
+        }).join(' ');
+        document.body.appendChild(d);
+      };
+      const _log = console.log;
+      console.log = log;
+      window.onerror = (m) => {
+        const d = document.createElement('div');
+        d.className = 'err'; d.textContent = '⚠ ' + m;
+        document.body.appendChild(d);
+      };
+      try { ${code} } catch(e) {
+        const d = document.createElement('div');
+        d.className='err'; d.textContent = '⚠ ' + e.message;
+        document.body.appendChild(d);
+      }
+    <\/script></body></html>`;
+  };
+}
+
+/* ============ CHAT ============ */
+function initChat(body){
+  body.innerHTML=`<div class="chat-app"><div class="chat-msgs"></div><div class="chat-input-row"><input class="chat-input" placeholder="Напишите сообщение…"><button class="chat-send">➤</button></div></div>`;
+  const msgs=body.querySelector('.chat-msgs');
+  const input=body.querySelector('.chat-input');
+  function add(text,who){
+    const m=document.createElement('div');m.className='chat-msg '+who;m.textContent=text;
+    msgs.appendChild(m);msgs.scrollTop=msgs.scrollHeight;
+  }
+  const replies=[
+    [/привет|здравствуй|hi|hello/i,'Привет! Как дела?'],
+    [/как дела|how are you/i,'Отлично! У меня всё работает стабильно 😊'],
+    [/имя|name/i,'Меня зовут GNOME-бот. Я живу в этой системе.'],
+    [/время|time/i,()=>'Сейчас '+new Date().toLocaleTimeString('ru-RU')],
+    [/дата|date/i,()=>'Сегодня '+new Date().toLocaleDateString('ru-RU')],
+    [/погода|weather/i,'Не могу проверить погоду — я живу в браузере 🌤️'],
+    [/спасибо|thanks/i,'Пожалуйста! Всегда рад помочь.'],
+    [/пока|bye/i,'До встречи! Возвращайся ещё.'],
+    [/помощь|help|\?/i,'Я умею: приветствовать, говорить время и дату, рассказывать про себя. Попробуй спросить что-нибудь!'],
+    [/что ты умеешь|what can you/i,'Я простой чат-бот. Могу поддержать разговор, но не более.'],
+    [/анекдот|шутка|joke/i,'Программист ставит на ночь два стакана: один с водой — если захочет пить, другой пустой — если не захочет.'],
+    [/люблю|love/i,'Очень мило с твоей стороны! ❤️']
+  ];
+  function bot(text){
+    for(const [re,r] of replies){
+      if(re.test(text))return typeof r==='function'?r():r;
+    }
+    return 'Интересно! Расскажи подробнее или спроси о времени/дате.';
+  }
+  function send(){
+    const v=input.value.trim();if(!v)return;
+    add(v,'user');input.value='';
+    setTimeout(()=>add(bot(v),'bot'),350);
+  }
+  body.querySelector('.chat-send').onclick=send;
+  input.addEventListener('keydown',e=>{if(e.key==='Enter')send();});
+  add('Привет! Я GNOME-бот. Спроси у меня что-нибудь 👋','bot');
+  input.focus();
+}
+
+/* ============ SYSMON ============ */
+function initSysmon(body){
+  body.innerHTML=`<div class="sysmon-app">
+    <div class="sysmon-row"><div class="sysmon-top"><span class="sysmon-label">CPU</span><span class="sysmon-value" id="sm-cpu">0%</span></div><canvas class="sysmon-graph" id="sm-cg"></canvas></div>
+    <div class="sysmon-row"><div class="sysmon-top"><span class="sysmon-label">RAM</span><span class="sysmon-value" id="sm-ram">0 МБ</span></div><canvas class="sysmon-graph" id="sm-rg"></canvas></div>
+    <div class="sysmon-info" id="sm-info"></div>
+  </div>`;
+  const cpuCanvas=body.querySelector('#sm-cg');const ramCanvas=body.querySelector('#sm-rg');
+  const cpuCtx=cpuCanvas.getContext('2d');const ramCtx=ramCanvas.getContext('2d');
+  const cpuHist=[];const ramHist=[];
+  function resize(c){c.width=c.clientWidth||400;c.height=c.clientHeight||70;}
+  resize(cpuCanvas);resize(ramCanvas);
+  function draw(ctx,canvas,data,color){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(!data.length)return;
+    const max=Math.max(...data,1);
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();
+    data.forEach((v,i)=>{
+      const x=(i/(data.length-1||1))*canvas.width;
+      const y=canvas.height-(v/max)*canvas.height;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    ctx.fillStyle=color.replace('rgb','rgba').replace(')',',0.15)');
+    ctx.lineTo(canvas.width,canvas.height);ctx.lineTo(0,canvas.height);ctx.closePath();ctx.fill();
+  }
+  function tick(){
+    if(!body.isConnected){clearInterval(iv);return;}
+    const cpu=Math.max(3,Math.min(97,30+Math.sin(Date.now()/3000)*25+Math.random()*30));
+    const ram=Math.max(200,Math.min(3900,1200+Math.sin(Date.now()/4000)*600+Math.random()*400));
+    cpuHist.push(cpu);if(cpuHist.length>60)cpuHist.shift();
+    ramHist.push(ram);if(ramHist.length>60)ramHist.shift();
+    body.querySelector('#sm-cpu').textContent=Math.round(cpu)+'%';
+    body.querySelector('#sm-ram').textContent=Math.round(ram)+' МБ / 4096 МБ';
+    draw(cpuCtx,cpuCanvas,cpuHist,'rgb(53,132,228)');
+    draw(ramCtx,ramCanvas,ramHist,'rgb(46,194,126)');
+    body.querySelector('#sm-info').innerHTML=`<b>Система:</b> GNOME WebOS 2.0<br><b>Ядро:</b> JS-движок ${navigator.userAgent.includes('Chrome')?'V8':navigator.userAgent.includes('Firefox')?'SpiderMonkey':'WebKit'}<br><b>Приложений открыто:</b> ${openWindows.size}<br><b>Всего установлено:</b> ${state.installed.length}`;
+  }
+  const iv=setInterval(tick,1000);tick();
+}
+
+/* ============ APP INIT MAP ============ */
+// Все init-функции уже определены выше через function hoisting
+
+/* ============ START ============ */
+applyState();
+rebuildDock();
+buildQuickSettings();
+setTimeout(()=>{
+  if(!state.installed.includes('store'))installApp('store');
+},100);
+// Открываем магазин при первом запуске
+setTimeout(()=>{
+  if(!localStorage.getItem('gnome-webos-v2-seen')){
+    openApp('store');
+    localStorage.setItem('gnome-webos-v2-seen','1');
+  }
+},400);
+</script>
+</body>
+</html>
